@@ -1,0 +1,30 @@
+name: Prepare Staff Gist Update
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  prepare-dispatch:
+    if: contains(github.event.label.name, 'approved')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract Action and Staff Name
+        id: extract
+        run: |
+          # Parse Markdown safely
+          ACTION=$(awk '/\*\*Action\*\*/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
+          NAME=$(awk '/\*\*Staff name\*\*/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+
+      - name: Show workflow_dispatch URL
+        run: |
+          REPO="${{ github.repository }}"
+          WORKFLOW="update-staff-gist.yml"
+          URL="https://github.com/$REPO/actions/workflows/$WORKFLOW/dispatches"
+          echo "Workflow Dispatch URL (click to run): $URL"
+          echo "Pre-filled inputs:"
+          echo "  action: ${{ steps.extract.outputs.action }}"
+          echo "  name: ${{ steps.extract.outputs.name }}"

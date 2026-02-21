@@ -14,8 +14,8 @@ jobs:
       - name: Extract form inputs
         id: extract
         run: |
-          ACTION=$(awk '/\*\*Action\*\*/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
-          NAME=$(awk '/\*\*Staff name\*\*/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
+          ACTION=$(awk '/^### Action/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
+          NAME=$(awk '/^### Staff name/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
           echo "action=$ACTION" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
 

@@ -10,16 +10,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Extract data from issue body reliably
-      - name: Extract data from issue
+      # 1️⃣ Extract form inputs correctly
+      - name: Extract form inputs
         id: extract
         run: |
-          ACTION=$(awk '/\*\*Action\*\*/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
-          NAME=$(awk '/\*\*Staff name\*\*/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
+          ACTION="${{ github.event.issue.inputs.action }}"
+          NAME="${{ github.event.issue.inputs.name }}"
           echo "action=$ACTION" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
 
-      # 2️⃣ Download current Gist file
+      # 2️⃣ Download current Gist
       - name: Download current Gist
         run: |
           curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
@@ -31,7 +31,7 @@ jobs:
         run: |
           sed -i -e '$a\' staff.txt
 
-      # 4️⃣ Add or remove the staff name
+      # 4️⃣ Add or remove staff name
       - name: Modify staff list
         run: |
           NAME="${{ steps.extract.outputs.name }}"
@@ -44,7 +44,7 @@ jobs:
             mv temp.txt staff.txt
           fi
 
-      # 5️⃣ Update Gist inline (no payload.json)
+      # 5️⃣ Update Gist inline
       - name: Update Gist
         run: |
           CONTENT=$(jq -Rs . < staff.txt)

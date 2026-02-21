@@ -1,0 +1,59 @@
+name: Update Staff Gist
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Add or Remove a staff member'
+        required: true
+        default: Add
+      name:
+        description: 'Staff Name exactly as it should appear'
+        required: true
+
+jobs:
+  update-gist:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Download current Gist
+      - name: Download current Gist
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            https://api.github.com/gists/YOUR_GIST_ID \
+            | jq -r '.files["GnG Currrent Staff"].content' > staff.txt
+
+      # 2️⃣ Ensure newline at the end
+      - name: Ensure newline
+        run: sed -i -e '$a\' staff.txt
+
+      # 3️⃣ Add or remove staff
+      - name: Modify staff list
+        run: |
+          NAME="${{ github.event.inputs.name }}"
+          ACTION="${{ github.event.inputs.action }}"
+
+          if [ "$ACTION" = "Add" ]; then
+            grep -Fxq "$NAME" staff.txt || echo "$NAME" >> staff.txt
+          elif [ "$ACTION" = "Remove" ]; then
+            grep -Fxv "$NAME" staff.txt > temp.txt
+            mv temp.txt staff.txt
+          fi
+
+      # 4️⃣ Update the Gist
+      - name: Update Gist
+        run: |
+          CONTENT=$(jq -Rs . < staff.txt)
+          curl -s -X PATCH https://api.github.com/gists/YOUR_GIST_ID \
+            -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"
+
+      # 5️⃣ Optional: Post confirmation comment
+      - name: Comment on issue
+        if: ${{ github.event.issue.number != '' }}
+        run: |
+          curl -s -X POST https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"body\":\"Staff list updated: $ACTION $NAME ✅\"}"

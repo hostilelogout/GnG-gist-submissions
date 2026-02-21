@@ -1,0 +1,43 @@
+name: Update Staff Gist
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Add or Remove'
+        required: true
+      name:
+        description: 'Staff Name'
+        required: true
+
+jobs:
+  update-gist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download current Gist
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            https://api.github.com/gists/YOUR_GIST_ID \
+            | jq -r '.files["GnG Currrent Staff"].content' > staff.txt
+
+      - name: Ensure newline
+        run: sed -i -e '$a\' staff.txt
+
+      - name: Add/Remove Staff
+        run: |
+          NAME="${{ github.event.inputs.name }}"
+          ACTION="${{ github.event.inputs.action }}"
+          if [ "$ACTION" = "Add" ]; then
+            grep -Fxq "$NAME" staff.txt || echo "$NAME" >> staff.txt
+          else
+            grep -Fxv "$NAME" staff.txt > temp.txt
+            mv temp.txt staff.txt
+          fi
+
+      - name: Update Gist
+        run: |
+          CONTENT=$(jq -Rs . < staff.txt)
+          curl -s -X PATCH https://api.github.com/gists/YOUR_GIST_ID \
+            -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"

@@ -1,0 +1,64 @@
+name: Auto Update Staff Gist
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  update-gist:
+    if: contains(join(github.event.issue.labels.*.name, ','), 'approved')
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Extract Action and Staff Name from issue body
+      - name: Extract form inputs
+        id: extract
+        run: |
+          # Parse Markdown fields
+          ACTION=$(awk '/\*\*Action\*\*/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
+          NAME=$(awk '/\*\*Staff name\*\*/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "Extracted Action: $ACTION"
+          echo "Extracted Name: $NAME"
+
+      # 2️⃣ Download the current Gist
+      - name: Download current Gist
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            https://api.github.com/gists/YOUR_GIST_ID \
+            | jq -r '.files["GnG Currrent Staff"].content' > staff.txt
+
+      # 3️⃣ Ensure newline at the end
+      - name: Ensure newline
+        run: sed -i -e '$a\' staff.txt
+
+      # 4️⃣ Add or remove staff
+      - name: Modify staff list
+        run: |
+          NAME="${{ steps.extract.outputs.name }}"
+          ACTION="${{ steps.extract.outputs.action }}"
+
+          if [ "$ACTION" = "Add" ]; then
+            grep -Fxq "$NAME" staff.txt || echo "$NAME" >> staff.txt
+          elif [ "$ACTION" = "Remove" ]; then
+            grep -Fxv "$NAME" staff.txt > temp.txt
+            mv temp.txt staff.txt
+          fi
+
+      # 5️⃣ Update the Gist
+      - name: Update Gist
+        run: |
+          CONTENT=$(jq -Rs . < staff.txt)
+          curl -s -X PATCH https://api.github.com/gists/YOUR_GIST_ID \
+            -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"
+
+      # 6️⃣ Comment on the issue to confirm
+      - name: Post confirmation comment
+        run: |
+          curl -s -X POST https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"body\":\"Staff list updated automatically: $ACTION $NAME ✅\"}"

@@ -2,15 +2,15 @@ name: Update Staff Gist
 
 on:
   issues:
-    types: [closed]
+    types: [labeled]
 
 jobs:
   update:
-    if: contains(github.event.issue.labels.*.name, 'gist-request')
+    if: contains(github.event.label.name, 'approved')
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Extract form inputs correctly
+      # 1️⃣ Extract Action and Staff name from Markdown
       - name: Extract form inputs
         id: extract
         run: |
@@ -44,7 +44,7 @@ jobs:
             mv temp.txt staff.txt
           fi
 
-      # 5️⃣ Update Gist inline
+      # 5️⃣ Update Gist
       - name: Update Gist
         run: |
           CONTENT=$(jq -Rs . < staff.txt)

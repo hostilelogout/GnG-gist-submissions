@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Extract data from the closed issue
       - name: Extract data from issue
         id: extract
         run: |
@@ -19,17 +20,19 @@ jobs:
           echo "action=$ACTION" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
 
+      # 2️⃣ Download the current Gist file
       - name: Download current Gist
         run: |
           curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
-            | jq -r '.files["GnG Currrent Staff"].content' \
-            > staff.txt
+            | jq -r '.files["GnG Currrent Staff"].content' > staff.txt
 
+      # 3️⃣ Ensure file ends with a newline
       - name: Ensure newline at end
         run: |
           sed -i -e '$a\' staff.txt
 
+      # 4️⃣ Add or remove the staff name
       - name: Modify staff list
         run: |
           NAME=$(echo "${{ steps.extract.outputs.name }}" | tr -d '\r')
@@ -42,10 +45,15 @@ jobs:
             mv temp.txt staff.txt
           fi
 
+      # 5️⃣ Update the Gist safely (fixed)
       - name: Update Gist
         run: |
-          CONTENT=$(jq -Rs . < staff.txt)
+          # Create a safe JSON payload
+          jq -n --arg content "$(cat staff.txt)" \
+            '{"files": {"GnG Currrent Staff": {"content": $content}}}' > payload.json
+
+          # Send the update via GitHub API
           curl -s -X PATCH https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"
+            -d @payload.json

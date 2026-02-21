@@ -26,10 +26,10 @@ jobs:
             https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             | jq -r '.files["GnG Currrent Staff"].content' > staff.txt
 
-      # 2️⃣ Remove trailing newlines
-      - name: Trim trailing newlines
+      # 2️⃣ Remove trailing blank lines (but keep each line intact)
+      - name: Remove trailing empty lines
         run: |
-          perl -i -pe 's/\s+\z//' staff.txt
+          sed -i '/^[[:space:]]*$/d' staff.txt || true
 
       # 3️⃣ Add or remove staff
       - name: Modify staff list
@@ -40,7 +40,8 @@ jobs:
           if [ "$ACTION" = "Add" ]; then
             # Only append if not already in the file
             if ! grep -Fxq "$NAME" staff.txt; then
-              printf "%s\n" "$NAME" >> staff.txt
+              # Ensure appended name starts on a new line
+              [ -s staff.txt ] && printf "\n%s" "$NAME" >> staff.txt || printf "%s" "$NAME" >> staff.txt
             fi
           elif [ "$ACTION" = "Remove" ]; then
             grep -Fxv "$NAME" staff.txt > temp.txt
@@ -56,7 +57,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"
 
-      # 5️⃣ Optional: Comment confirmation
+      # 5️⃣ Optional confirmation comment
       - name: Comment on issue
         if: ${{ github.event.issue.number != '' }}
         run: |

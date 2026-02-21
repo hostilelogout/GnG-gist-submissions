@@ -1,23 +1,29 @@
-name: Update Staff Gist
+name: Update Staff Gist (Approved Requests)
 
 on:
-  issues:
-    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Add or Remove
+        required: true
+        type: choice
+        options:
+          - Add
+          - Remove
+      name:
+        description: Staff name exactly as it should appear
+        required: true
+        type: string
 
 jobs:
   update:
-    if: contains(github.event.label.name, 'approved')
     runs-on: ubuntu-latest
-
     steps:
-      # 1️⃣ Extract Action and Staff name from Markdown
-      - name: Extract form inputs
-        id: extract
+      # 1️⃣ Show debug info
+      - name: Debug inputs
         run: |
-          ACTION=$(awk '/^### Action/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
-          NAME=$(awk '/^### Staff name/ {getline; gsub(/^[ \t]+|[ \t]+$/,""); print}' <<< "${{ github.event.issue.body }}")
-          echo "action=$ACTION" >> $GITHUB_OUTPUT
-          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "Action: ${{ github.event.inputs.action }}"
+          echo "Name: ${{ github.event.inputs.name }}"
 
       # 2️⃣ Download current Gist
       - name: Download current Gist
@@ -34,8 +40,8 @@ jobs:
       # 4️⃣ Add or remove staff name
       - name: Modify staff list
         run: |
-          NAME="${{ steps.extract.outputs.name }}"
-          ACTION="${{ steps.extract.outputs.action }}"
+          NAME="${{ github.event.inputs.name }}"
+          ACTION="${{ github.event.inputs.action }}"
 
           if [ "$ACTION" = "Add" ]; then
             grep -Fxq "$NAME" staff.txt || echo "$NAME" >> staff.txt

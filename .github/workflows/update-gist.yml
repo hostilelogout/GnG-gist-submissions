@@ -14,30 +14,30 @@ jobs:
         id: extract
         run: |
           BODY="${{ github.event.issue.body }}"
-
           ACTION=$(echo "$BODY" | grep -i "Action" -A1 | tail -n1 | tr -d '\r')
           NAME=$(echo "$BODY" | grep -i "Staff name" -A1 | tail -n1 | tr -d '\r')
-
           echo "action=$ACTION" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
 
       - name: Download current Gist
         run: |
-          curl -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+          curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             | jq -r '.files["file-gng-currrent-staff"].content' \
             > staff.txt
 
+      - name: Ensure newline at end
+        run: |
+          sed -i -e '$a\' staff.txt
+
       - name: Modify staff list
         run: |
-          NAME="${{ steps.extract.outputs.name }}"
-          ACTION="${{ steps.extract.outputs.action }}"
+          NAME=$(echo "${{ steps.extract.outputs.name }}" | tr -d '\r')
+          ACTION=$(echo "${{ steps.extract.outputs.action }}" | tr -d '\r')
 
           if [ "$ACTION" = "Add" ]; then
             grep -Fxq "$NAME" staff.txt || echo "$NAME" >> staff.txt
-          fi
-
-          if [ "$ACTION" = "Remove" ]; then
+          elif [ "$ACTION" = "Remove" ]; then
             grep -Fxv "$NAME" staff.txt > temp.txt
             mv temp.txt staff.txt
           fi
@@ -45,14 +45,7 @@ jobs:
       - name: Update Gist
         run: |
           CONTENT=$(jq -Rs . < staff.txt)
-
-          curl -X PATCH https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
+          curl -s -X PATCH https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            -d "{
-              \"files\": {
-                \"file-gng-currrent-staff\": {
-                  \"content\": $CONTENT
-                }
-              }
-            }"
+            -d "{\"files\":{\"file-gng-currrent-staff\":{\"content\":$CONTENT}}}"

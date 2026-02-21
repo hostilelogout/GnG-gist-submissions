@@ -1,48 +1,47 @@
-name: Update Staff Gist (Approved Requests)
+name: Update Staff Gist
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: Add or Remove
+        description: "Add or Remove a staff member"
         required: true
         type: choice
         options:
           - Add
           - Remove
       name:
-        description: Staff name exactly as it should appear
+        description: "Exact staff name"
         required: true
+        type: string
+      issue_number:
+        description: "Link to the original issue"
+        required: false
         type: string
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      # 1️⃣ Show debug info
-      - name: Debug inputs
+      - name: Show inputs
         run: |
           echo "Action: ${{ github.event.inputs.action }}"
           echo "Name: ${{ github.event.inputs.name }}"
+          echo "Issue Number: ${{ github.event.inputs.issue_number }}"
 
-      # 2️⃣ Download current Gist
       - name: Download current Gist
         run: |
           curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             | jq -r '.files["GnG Currrent Staff"].content' > staff.txt
 
-      # 3️⃣ Ensure newline at end
       - name: Ensure newline at end
-        run: |
-          sed -i -e '$a\' staff.txt
+        run: sed -i -e '$a\' staff.txt
 
-      # 4️⃣ Add or remove staff name
       - name: Modify staff list
         run: |
           NAME="${{ github.event.inputs.name }}"
           ACTION="${{ github.event.inputs.action }}"
-
           if [ "$ACTION" = "Add" ]; then
             grep -Fxq "$NAME" staff.txt || echo "$NAME" >> staff.txt
           elif [ "$ACTION" = "Remove" ]; then
@@ -50,7 +49,6 @@ jobs:
             mv temp.txt staff.txt
           fi
 
-      # 5️⃣ Update Gist
       - name: Update Gist
         run: |
           CONTENT=$(jq -Rs . < staff.txt)
@@ -58,3 +56,11 @@ jobs:
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"
+
+      - name: Comment on issue
+        if: ${{ github.event.inputs.issue_number != '' }}
+        run: |
+          curl -s -X POST https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.inputs.issue_number }}/comments \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"body\":\"Staff list updated: $ACTION $NAME ✅\"}"

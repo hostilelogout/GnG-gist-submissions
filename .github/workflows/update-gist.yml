@@ -1,0 +1,31 @@
+name: Update Gist from Requests
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  update-gist:
+    if: contains(github.event.issue.labels.*.name, 'gist-request')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract entry text
+        id: extract
+        run: |
+          BODY="${{ github.event.issue.body }}"
+          ENTRY=$(echo "$BODY" | grep -A1 "Entry" | tail -n1)
+          echo "entry=$ENTRY" >> $GITHUB_OUTPUT
+
+      - name: Update Gist
+        run: |
+          curl -X PATCH https://api.github.com/gists/YOUR_GIST_ID \
+            -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d '{
+              "files": {
+                "list.txt": {
+                  "content": "Updated via request"
+                }
+              }
+            }'

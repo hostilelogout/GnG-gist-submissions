@@ -24,7 +24,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -d '{
               "files": {
-                "GnG Currrent Staff": {
+                "file-gng-currrent-staff": {
                   "content": "Updated via request"
                 }
               }

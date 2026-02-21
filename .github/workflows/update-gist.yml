@@ -23,7 +23,7 @@ jobs:
         run: |
           curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
-            | jq -r '.files["file-gng-currrent-staff"].content' \
+            | jq -r '.files["GnG Currrent Staff"].content' \
             > staff.txt
 
       - name: Ensure newline at end
@@ -48,4 +48,4 @@ jobs:
           curl -s -X PATCH https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            -d "{\"files\":{\"file-gng-currrent-staff\":{\"content\":$CONTENT}}}"
+            -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"

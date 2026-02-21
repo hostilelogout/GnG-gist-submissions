@@ -10,30 +10,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Extract form data directly
-      - name: Extract form data
+      - name: Extract data from issue
         id: extract
         run: |
-          echo "action=${{ github.event.issue.form.action }}" >> $GITHUB_OUTPUT
-          echo "name=${{ github.event.issue.form.name }}" >> $GITHUB_OUTPUT
+          BODY="${{ github.event.issue.body }}"
+          ACTION=$(echo "$BODY" | grep -i "Action" -A1 | tail -n1 | tr -d '\r')
+          NAME=$(echo "$BODY" | grep -i "Staff name" -A1 | tail -n1 | tr -d '\r')
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
 
-      # 2️⃣ Download current Gist content
       - name: Download current Gist
         run: |
           curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
-            | jq -r '.files["GnG Currrent Staff"].content' > staff.txt
+            | jq -r '.files["GnG Currrent Staff"].content' \
+            > staff.txt
 
-      # 3️⃣ Ensure newline at end
       - name: Ensure newline at end
         run: |
           sed -i -e '$a\' staff.txt
 
-      # 4️⃣ Add or remove the staff name
       - name: Modify staff list
         run: |
-          NAME="${{ steps.extract.outputs.name }}"
-          ACTION="${{ steps.extract.outputs.action }}"
+          NAME=$(echo "${{ steps.extract.outputs.name }}" | tr -d '\r')
+          ACTION=$(echo "${{ steps.extract.outputs.action }}" | tr -d '\r')
 
           if [ "$ACTION" = "Add" ]; then
             grep -Fxq "$NAME" staff.txt || echo "$NAME" >> staff.txt
@@ -42,13 +42,10 @@ jobs:
             mv temp.txt staff.txt
           fi
 
-      # 5️⃣ Update Gist safely
       - name: Update Gist
         run: |
-          jq -n --arg content "$(cat staff.txt)" \
-            '{"files": {"GnG Currrent Staff": {"content": $content}}}' > payload.json
-
+          CONTENT=$(jq -Rs . < staff.txt)
           curl -s -X PATCH https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            -d @payload.json
+            -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"

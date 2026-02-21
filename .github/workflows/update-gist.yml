@@ -19,7 +19,7 @@ jobs:
 
       - name: Update Gist
         run: |
-          curl -X PATCH https://api.github.com/gists/YOUR_GIST_ID \
+          curl -X PATCH https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -d '{

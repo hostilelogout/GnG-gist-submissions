@@ -1,31 +1,58 @@
-name: Update Gist from Requests
+name: Update Staff Gist
 
 on:
   issues:
     types: [closed]
 
 jobs:
-  update-gist:
+  update:
     if: contains(github.event.issue.labels.*.name, 'gist-request')
     runs-on: ubuntu-latest
 
     steps:
-      - name: Extract entry text
+      - name: Extract data from issue
         id: extract
         run: |
           BODY="${{ github.event.issue.body }}"
-          ENTRY=$(echo "$BODY" | grep -A1 "Entry" | tail -n1)
-          echo "entry=$ENTRY" >> $GITHUB_OUTPUT
+
+          ACTION=$(echo "$BODY" | grep -i "Action" -A1 | tail -n1 | tr -d '\r')
+          NAME=$(echo "$BODY" | grep -i "Staff name" -A1 | tail -n1 | tr -d '\r')
+
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+
+      - name: Download current Gist
+        run: |
+          curl -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
+            | jq -r '.files["file-gng-currrent-staff"].content' \
+            > staff.txt
+
+      - name: Modify staff list
+        run: |
+          NAME="${{ steps.extract.outputs.name }}"
+          ACTION="${{ steps.extract.outputs.action }}"
+
+          if [ "$ACTION" = "Add" ]; then
+            grep -Fxq "$NAME" staff.txt || echo "$NAME" >> staff.txt
+          fi
+
+          if [ "$ACTION" = "Remove" ]; then
+            grep -Fxv "$NAME" staff.txt > temp.txt
+            mv temp.txt staff.txt
+          fi
 
       - name: Update Gist
         run: |
+          CONTENT=$(jq -Rs . < staff.txt)
+
           curl -X PATCH https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            -d '{
-              "files": {
-                "file-gng-currrent-staff": {
-                  "content": "Updated via request"
+            -d "{
+              \"files\": {
+                \"file-gng-currrent-staff\": {
+                  \"content\": $CONTENT
                 }
               }
-            }'
+            }"

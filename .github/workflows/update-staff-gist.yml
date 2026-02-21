@@ -23,13 +23,13 @@ jobs:
       - name: Download current Gist
         run: |
           curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
-            https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
+            https://api.github.com/gists/YOUR_GIST_ID \
             | jq -r '.files["GnG Currrent Staff"].content' > staff.txt
 
-      # 2️⃣ Trim trailing newlines (prevent extra blank lines)
+      # 2️⃣ Remove trailing newlines
       - name: Trim trailing newlines
         run: |
-          sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' staff.txt
+          perl -i -pe 's/\s+\z//' staff.txt
 
       # 3️⃣ Add or remove staff
       - name: Modify staff list
@@ -38,27 +38,25 @@ jobs:
           ACTION="${{ github.event.inputs.action }}"
 
           if [ "$ACTION" = "Add" ]; then
-            grep -Fxq "$NAME" staff.txt || echo "$NAME" >> staff.txt
+            # Only append if not already in the file
+            if ! grep -Fxq "$NAME" staff.txt; then
+              printf "%s\n" "$NAME" >> staff.txt
+            fi
           elif [ "$ACTION" = "Remove" ]; then
             grep -Fxv "$NAME" staff.txt > temp.txt
             mv temp.txt staff.txt
           fi
 
-      # 4️⃣ Remove trailing newline again just in case
-      - name: Trim trailing newline after modification
-        run: |
-          sed -i -e :a -e '/^\n*$/{$d;N;};/\n$/ba' staff.txt
-
-      # 5️⃣ Update the Gist
+      # 4️⃣ Update the Gist
       - name: Update Gist
         run: |
           CONTENT=$(jq -Rs . < staff.txt)
-          curl -s -X PATCH https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
+          curl -s -X PATCH https://api.github.com/gists/YOUR_GIST_ID \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"
 
-      # 6️⃣ Optional: Comment confirmation
+      # 5️⃣ Optional: Comment confirmation
       - name: Comment on issue
         if: ${{ github.event.issue.number != '' }}
         run: |

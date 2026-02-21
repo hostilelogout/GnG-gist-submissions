@@ -20,7 +20,7 @@ jobs:
       - name: Download current Gist
         run: |
           curl -s -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
-            https://api.github.com/gists/YOUR_GIST_ID \
+            https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             | jq -r '.files["GnG Currrent Staff"].content' > staff.txt
 
       # 2️⃣ Ensure newline at the end
@@ -44,7 +44,7 @@ jobs:
       - name: Update Gist
         run: |
           CONTENT=$(jq -Rs . < staff.txt)
-          curl -s -X PATCH https://api.github.com/gists/YOUR_GIST_ID \
+          curl -s -X PATCH https://api.github.com/gists/9b98e6a25159cb400fc313426839c1bf \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -d "{\"files\":{\"GnG Currrent Staff\":{\"content\":$CONTENT}}}"
